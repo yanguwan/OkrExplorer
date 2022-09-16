@@ -47,21 +47,37 @@ The project is based on Python 3. All the dependent module is listed in the requ
 Please install them before you apply the tool. Besides those dependent module, you need to configure the .env file before starting the tool. The content of the .env is like
 
 APP_ID, the application id assignment by the Feishu open platform
+
 APP_SECRET, for security consideration
+
 FEISHU_HOST, the feishu server URL
+
 STOP_WORDS, the path to stop words text file used by your search engine
+
 DB_HOSTS, your TiDB Cloud URL, other SQL database should be also ok
+
 DB_USER, the user you access the database
+
 DB_PASSWD, the password you access the database
+
 DB_PORT, the port you access the database
+
 REDIS_PORT, the port the local Redis, by default it is 6379
+
 DATABASE, the database you would like to connect
+
 SECRET_KEY, used by flask, suggest using a static key to make gunicore consistent among threads.
+
 RB_CODE, the password to trigger the web server rebuild
+
 URL_BASE, the root part of a OKR display page, usally it is http://xxx.feishu.cn/okr/user/
+
 OKR_EX_SERVER, your OkrEx server address, usally it is http://ip:port
+
 SBSCRB_CHK_INTERVAL, the interval for OkrEx Server refresh data from Feishu server
+
 SEGS_CHANGED, configure any alphanumeric name, it is used internally
+
 OKREX_APP_URL, the OkrEx application URL within Feishu Client, which is optional
 
 # Launch the server
