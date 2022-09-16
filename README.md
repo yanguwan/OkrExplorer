@@ -29,7 +29,7 @@ Just input the key word you care and see who else in your orgnization is caring 
 
 ## OKR Subscribe
 
-Display what key words you are subscribing and allow you unsubscribe them if you would like to. You can subscribe any keep word in searching page by click the "subscribe" button.
+Display what key words you are subscribing and allow you unsubscribe them if you would like to. You can subscribe any key word in searching page by click the "subscribe" button.
 
 ## OKR Map
 
