@@ -1,0 +1,54 @@
+
+
+h1 {
+  color: white;
+  text-align: center;
+  position=absolute;
+  left=50%;
+  right=50%;
+}
+
+p {
+  font-family: verdana;
+  font-size: 20px;
+}
+
+#search_div  {
+text-align: center;
+margin: auto;
+border: 1px;
+solid: rgb(255, 165, 0);
+/*background-color: red;*/
+position=absolute;
+left=0;
+right=0;
+}
+
+
+#form1 {
+text-align: center;
+margin: auto;
+width: 500px;
+
+}
+#s{
+width: 400px;
+height: 25px;
+border-radius: 5px;
+outline-offset: 25px;
+}
+#s_btn{
+height:25px;
+}
+input{
+height: 25px
+border-radius: 5px;
+}
+#page_btn{
+width:20px;
+height: 20px;
+padding:20px;
+font-size:20px;
+}
+
+

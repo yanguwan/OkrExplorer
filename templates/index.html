@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %} OKR Explorer {% endblock %}
+{% block head %}
+    {{ super() }}
+{% endblock %}
+
+{% block bodycontent %}
+
+<div class="jumbotron">
+  <h1>OKR Explorer</h1>
+  <p>Every objective and resolutions from every PingCAPer matters </p>
+  <form class="navbar-form navbar-center" role="search" action="/okr" method="post" >
+      <div class="form-group">
+        <input type="text" class="form-control" placeholder="Search..." name="search" id="s">
+      </div>
+      <button type="submit" class="btn btn-default">Go!</button>
+  </form>
+</div>
+
+<h3><span class="label label-success">How to use the OKR Explorer</span></h3>
+<br>
+<ul class="media-list">
+    <li class="media">
+        <div class="media-body">
+            <h4 class="media-heading"><span class="label label-success"><a href="/subscribe">OKR Subscribe</a></span></h4>
+            <p>display what key words you are subscribing and allow you unsubscribe them if you would like to</p>
+        </div>
+    </li>
+
+    <li class="media">
+
+        <div class="media-body">
+            <h4 class="media-heading"><span class="label label-success"><a href="/graph">OKR Map</a></span></h4>
+            <p>display the alignment and leveraging level in your organization, including who are not aligned with your objectives and who are leveraged from other teams</p>
+        </div>
+    </li>
+
+    <li class="media">
+        <div class="media-body">
+            <h4 class="media-heading"><span class="label label-success"><a href="/health">OKR Health</a></span></h4>
+            <p> display OKR health level, the percentage of healthy OKR and sick OKR (no OKR and objective without KR)</p>
+        </div>
+    </li>
+    <li class="media">
+        <div class="media-body">
+            <h4 class="media-heading"><span class="label label-success"><a href="/analytic">OkrEx Analytics</a></span></h4>
+            <p> show what key words are mostly searched and/or subscribed</p>
+        </div>
+    </li>
+    <li class="media">
+        <div class="media-body">
+            <h4 class="media-heading"><span class="label label-success"><a href="/OoO">OoO</a></span></h4>
+            <p>means your targets out of OKR,which is under development</p>
+        </div>
+    </li>
+</ul>
+
+{% endblock %}
+{% block myscript %}
+    <script src="/static/index.js"></script>
+{% endblock %}

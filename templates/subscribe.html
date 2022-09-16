@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %} My Subscription {% endblock %}
+{% block head %}
+    {{ super() }}
+{% endblock %}
+{% block sidebar_nav1 %}
+           <li class="active">
+                <a href="/subscribe">Subscription Info <span class="sr-only">(current)</span></a>
+            </li>
+{% endblock %}
+
+
+{% block bodycontent %}
+
+<h2 class="sub-header">{{current_user}}'s Subscription</h2>
+
+
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+                <tr>
+                    <th><em>Key word</em></th>
+                  <th><em>Mentioners</em></th>
+                    <th><em>Subscribing Date</em></th>
+                  <th><em>Unsubscribe</em></th>
+                </tr>
+        </thead>
+        <tbody>
+        {% for item in key_word_rich_list %}
+            <tr id="{{ item[0] }}">
+                <!-- key word -->
+                <td><em>{{item[0]}}</em></td>
+                <!-- mentioners -->
+                <td>mentioned by <a href="{{ url_for(endpoint='search',search=item[0]) }}">{{ item[1] }}</a> colleagues</td>
+                <!-- subsciption date -->
+                <td>{{item[2]}}</td>
+                <!-- Unsubscribe -->
+                <td><button type="button" onclick="unsbscrb('{{ item[0] }}')">Unsubscribe</button></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+</div>
+
+{% endblock %}
+{% block myscript %}
+<script>
+        function unsbscrb(key_word)
+        {
+            var url='/unsubscribe?key='
+            console.log(key_word)
+            // send request to web server to unsubscribe the key_word
+            fetch(url.concat(key_word)).then(res => {console.log(res)})
+            //make the key_word display off
+            x=document.getElementById(key_word)
+            console.log(x)
+            x.innerHTML=""
+        }
+</script>
+{% endblock %}

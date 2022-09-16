@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %} OKR Explorer {% endblock %}
+{% block head %}
+    {{ super() }}
+{% endblock %}
+
+{% block bodycontent %}
+
+    <div class="row" id="result_div">
+        <div id="count">
+            <b>"{{search_str}}" is searched.</b>
+            <span class="badge">{{count}} </span> <b>records are found.</b>
+            <script>
+                function tellsubs() {
+                    fetch(`/subscribe?key={{search_str}}`).then(res => {console.log(res)})
+                    // 调用 showToast API 弹出全局提示框
+                    // 详细文档参见https://open.feishu.cn/document/uAjLw4CM/uYjL24iN/block/api/showtoast
+                    tt.showToast({
+                         title: 'Subscribed!',
+                         icon: 'success',
+                         duration: 3000,
+                        success (res) {
+                          console.log('showToast 调用成功', res.errMsg);
+                        },
+                        fail (res) {
+                          console.log('showToast 调用失败', res.errMsg);
+                        },
+                        complete (res) {
+                          console.log('showToast 调用结束', res.errMsg);
+                        }
+                    });
+                }
+            </script>
+            <button type="button" class="btn btn-info btn-xs" id="subs" onclick="tellsubs()">Subscribe it!</button>
+                {% if elapsed_str %}
+                <b>{{elapsed_str}}</b>
+                {% endif %}
+       </div>
+
+        <br>
+        <!--
+        item[0]=>roger's OKR
+        item[1]=>url
+        item[2]=>OKR content
+        item[3]=> highly or not
+        item[4]=>avatar
+        -->
+        <!-- <div class="container"> -->
+            <ul class="media-list">
+                {% for item in display %}
+                <li class="media">
+                    <div class="media-left">
+                        <a href="{{item.url}}">
+                            <img src="{{item.avatar}}" alt="{{item.whose}}">
+                        </a>
+                    </div>
+                    <div class="media-body">
+                        <h4>
+                            <a name="sb_okr" href="{{item.url}}" target="_blank">
+                                {{item.whose}}'s OKR
+                            </a>
+                        {% if item.highly %}
+                            <img src="{{url_for('static',filename='okrex.ico')}}" style="width:20px;height:20px;">
+                        {% endif %}
+                        </h4>
+                        {% autoescape false %} <!-- stop escape to support <em> -->
+                        <p>
+                            {{item.okr_content}}
+                        </p>
+                        {% endautoescape %}
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        <!-- </div> -->
+
+        {% if pages > 1 %}
+    <nav aria-label="Page navigation">
+  <ul class="pagination">
+
+      {% for pl in pages_list %}
+    {% if pl == pageno %}
+    <li class="active">
+        <a href="{{ url_for('get_page', page_no=pl,s=search_str) }}">
+                    {{ pl }}
+        <span class="sr-only">(current)</span>
+        </a>
+    </li>
+      {% else %}
+
+    <li>
+        <a href="{{ url_for('get_page', page_no=pl,s=search_str) }}">
+                    {{ pl }}
+        </a>
+    </li>
+      </li>
+      {% endif %}
+      {% endfor %}
+
+  </ul>
+</nav>
+        {% endif %}
+</div>
+
+{% endblock %}
+{% block myscript %}
+    <script src="/static/result.js"></script>
+{% endblock %}
