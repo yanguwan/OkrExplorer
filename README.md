@@ -1,4 +1,4 @@
-# okrExplorer
+# OkrExplorer
 A small tool to enable horizontal collaboration by easily find interested OKR within an organization
 
 # What OKR Explorer is?
@@ -19,7 +19,7 @@ We do not choose Elastic Search as the engines, instead we use a relational data
 
 For the reverse index, the main idea is segmenting the OKR into key words, and record the key word and all its mentioner into the table key2user. In this case, we use [jieba](https://github.com/fxsjy/jieba) as the segmentation tool.
 
-Flash OkrEx application server will get request from OkrEx client, which is embeded into Feish client, and transfer them into request to the TiDB Cloud.
+Flask OkrEx application server will get request from OkrEx client, which is embeded into Feish client, and transfer them into request to the TiDB Cloud.
 
 # Function
 
@@ -34,7 +34,7 @@ Display what key words you are subscribing and allow you unsubscribe them if you
 ## OKR Map
 
 Display the alignment and leveraging level in your orginazation, including who are not aligned with your objectives and who are leveraged.
-## OkeEx Analytics
+## OkrEx Analytics
 Show what key words are mostly searched and/or subscribed.
 
 ## OoO
