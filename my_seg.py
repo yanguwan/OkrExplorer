@@ -31,14 +31,15 @@ def load_stop_words():
 
 
 def my_seg(to_seg_str):
+
     seged_list = []
     stop_words_list = load_stop_words()
 
     seg_list = jieba.lcut_for_search(to_seg_str)
 
-    for str in seg_list:
-        str = str.strip()
-        if str and not my_utils.single_asc(str) and str not in stop_words_list and str.find(';') < 0:
-            seged_list.append(str)
+    for seg in seg_list:
+        seg = seg.strip()
+        if seg and not my_utils.single_asc(seg) and seg not in stop_words_list and seg.find(';') < 0:
+            seged_list.append(seg.lower())  # to make non case-insensitive, uniform to lower case
 
     return list(set(seged_list))
