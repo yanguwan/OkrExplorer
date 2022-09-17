@@ -365,15 +365,14 @@ def update_search_str_in_redis():
     my_app.logger.debug('Entering update_search_str_in_redis')
     tup = Okr_server_msg.query.filter_by(name=SEGS_CHANGED).first()
 
-    changed_seg_list = []
-
     if tup:  # tup[0] should be segs string delimiter by ;
-        changed_seg_list = tup.value.split(';')
-    my_app.logger.debug(changed_seg_list)
+        changed_seg_set = set(tup.value.split(';'))
+    my_app.logger.debug(changed_seg_set)
     for key in rds.scan_iter('#search_str#*'):
+        key = key.replace('#search_str#', '')  # cut off the header
         search_str_list = re.split(r"[ ]+", key)  # one blank or multiple blank as split
         # there are changed set appears in the key, we need delete the key
-        if set(changed_seg_list) & set(search_str_list):
+        if changed_seg_set & set(search_str_list):
             rds.delete(key)
 
     return 'success'
@@ -388,8 +387,10 @@ def get_ordered_open_id_list(search_str):
         It is ordered by the match level
         high_recommend_amount: Int, the # of top open_id should be highly recommended.
     """
+
     # it is the final open_id list
-    ordered_open_id_list = rds.lrange('#search_str#' + search_str, 0, -1)
+    # Notice: the key is non case-insensitive in redis cache
+    ordered_open_id_list = rds.lrange('#search_str#' + search_str.lower(), 0, -1)
     my_app.logger.debug('open id length is %s' % len(ordered_open_id_list))
 
     if not ordered_open_id_list:
@@ -457,7 +458,7 @@ def get_ordered_open_id_list(search_str):
 
         # keep the final ordered url list into redis
         for u in ordered_open_id_list:
-            rds.rpush('#search_str#' + search_str, u)
+            rds.rpush('#search_str#' + search_str.lower(), u)
 
         # also keep the high_recommend_amount into redis
         rds.set('#high_recommend#' + search_str, high_recommend_amount)
