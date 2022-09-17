@@ -383,7 +383,7 @@ def get_user_by_temp_auth(auth):
     return data['data']
 
 
-def send_notify(to_open_id, msg_content):
+def send_notify(app, to_open_id, msg_content):
     url = "https://open.feishu.cn/open-apis/im/v1/messages"
     tenant_access_token, app_access_token = get_access_token()
     params = {"receive_id_type": "open_id"}
@@ -399,7 +399,7 @@ def send_notify(to_open_id, msg_content):
         'Content-Type': 'application/json'
     }
     response = requests.request("POST", url, params=params, headers=headers, data=payload)
-    my_utils.my_log(response.headers['X-Tt-Logid'], level='DEBUG')  # for debug or oncall
-    my_utils.my_log(response.content, level='DEBUG')  # Print Response
+    app.logger.debug(response.headers['X-Tt-Logid'])  # for debug or oncall
+    app.logger.debug(response.content)  # Print Response
     result = json.loads(response.content)
     return result['code']

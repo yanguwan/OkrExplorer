@@ -277,7 +277,7 @@ def final_display_list(ordered_open_id_list,
         # split it by any number of blank
         search_str_list = re.split(r"[ ]+", search_str)
 
-        okr_content, nil, nil = my_utils.get_okrcontent_from_okr_str(okr_str, search_str_list)
+        okr_content, nil, nil = my_utils.get_okrcontent_from_okr_str(okr_str, search_str_list, my_app)
 
         if em:  # emphasize the key word in the okr_content, true by default.
             beg_em_str = '<em style="color:red;">'
@@ -355,12 +355,12 @@ def load_users_tbl_to_redis():
 
 def update_search_str_in_redis():
     """
-    Update the search_str:open_id list pair in redis. 
-    
+    Update the search_str:open_id list pair in redis.
+
     Usually it needs to be call during the rebuild process, after key2user table is updated
-    
+
     return 'success'.
-    
+
     """
     my_app.logger.debug('Entering update_search_str_in_redis')
     tup = Okr_server_msg.query.filter_by(name=SEGS_CHANGED).first()
@@ -677,7 +677,7 @@ def send_notify_messages(notify_dic, title="okrExplorer Subscription Notificatio
                 msgContent['en_us']['content'].append(body_content_block)  # push body
 
         # for each subscriber, send one notification msg
-        result = get_data_from_feishu.send_notify(subscriber, msgContent)
+        result = get_data_from_feishu.send_notify(my_app, subscriber, msgContent)
 
         if result != 0:
             my_app.logger.error("Error sending msg to %s" % subscriber)
@@ -1019,7 +1019,6 @@ def get_top_search_keyword(num):
 
 @my_app.route("/", methods=["GET"])
 def get_home():
-    session['user'] = DEBUG_USER_ID  # roger
     return render_template("index.html")
 
 
