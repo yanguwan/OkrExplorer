@@ -1,9 +1,9 @@
 # OkrExplorer
-A small tool to enable horizontal collaboration by easily find interested OKR within an organization
+A small tool to enable horizontal collaboration by easily finding interested OKR within an organization
 
 # What OKR Explorer is?
 
-OKR Explorer help you find your colleagures who share same targets and job interets.
+OKR Explorer help you find your colleagues who share same targets and job interets.
 
 Also it provides managers some overview functions on his/her orgnizations' OKRs, including OKR health level, alignment ratio and leveraging level.
 
@@ -13,13 +13,13 @@ It is based on Feishu OKR and built on [PingCAP TiDB Cloud Dev Tier](https://tid
 
 ![Arch](/images/arch.png)
 
-OkrEx is a Flask Web server. It periodcially fetch OKR data, User Data, Department data from Feish Server. Please check [Feishu open platform](https://open.feishu.cn/) for the Feishu API usage.
+OkrEx is a Flask Web server. It periodically fetches OKR data, User Data, Departments data from Feishu Server. Please check [Feishu open platform](https://open.feishu.cn/) for the Feishu API usage.
 
-We do not choose Elastic Search as the engines, instead we use a relational database, plus a keyword to item reverse index. We choose TiDB Cloud Dev Tier.
+We do not choose Elastic Search as the engines, instead we use a relational database, plus a keyword-to-items reversing index. We choose TiDB Cloud Dev Tier.
 
-For the reverse index, the main idea is segmenting the OKR into key words, and record the key word and all its mentioner into the table key2user. In this case, we use [jieba](https://github.com/fxsjy/jieba) as the segmentation tool.
+For the reversing index, the main idea is segmenting the OKR into key words, and recording the key word and all its mentioner into the table key2user. In this case, we use [jieba](https://github.com/fxsjy/jieba) as the segmentation tool.
 
-Flask OkrEx application server will get request from OkrEx client, which is embeded into Feish client, and transfer them into request to the TiDB Cloud.
+Flask OkrEx application server will get requests from OkrEx client, which is embeded into Feishu client, and transfer them into requests to the TiDB Cloud.
 
 # Function
 
@@ -33,7 +33,8 @@ Display what key words you are subscribing and allow you unsubscribe them if you
 
 ## OKR Map
 
-Display the alignment and leveraging level in your orginazation, including who are not aligned with your objectives and who are leveraged.
+Display the alignment and leveraging level in your organization, including who are not aligned with your objectives and who are leveraged.
+
 ## OkrEx Analytics
 Show what key words are mostly searched and/or subscribed.
 
@@ -42,9 +43,9 @@ Means your targets out of OKR, which is under development.
 
 # Configuration
 
-The project is based on Python 3. All the dependent module is listed in the requirments.txt
+The project is based on Python 3. All the dependent modules are listed in the requirments.txt
 
-Please install them before you apply the tool. Besides those dependent module, you need to configure the .env file before starting the tool. The content of the .env is like
+Please install them before you apply the tool. Besides those dependent modules, you need to configure the .env file before starting the tool. The content of the .env is like
 
 APP_ID, the application id assignment by the Feishu open platform
 
@@ -52,7 +53,7 @@ APP_SECRET, for security consideration
 
 FEISHU_HOST, the feishu server URL
 
-STOP_WORDS, the path to stop words text file used by your search engine
+STOP_WORDS, the path to stop words text file used by your searching engine
 
 DB_HOSTS, your TiDB Cloud URL, other SQL database should be also ok
 
@@ -64,15 +65,15 @@ DB_PORT, the port you access the database
 
 REDIS_PORT, the port the local Redis, by default it is 6379
 
-DATABASE, the database you would like to connect
+DATABASE, the database name you would like to connect
 
-SECRET_KEY, used by flask, suggest using a static key to make gunicore consistent among threads.
+SECRET_KEY, used by flask, suggest using a static key to make gunicorn consistent among threads.
 
 RB_CODE, the password to trigger the web server rebuild
 
 URL_BASE, the root part of a OKR display page, usally it is http://xxx.feishu.cn/okr/user/
 
-OKR_EX_SERVER, your OkrEx server address, usally it is http://ip:port
+OKR_EX_SERVER, your OkrEx server address, usally it is like http://ip:port
 
 SBSCRB_CHK_INTERVAL, the interval for OkrEx Server refresh data from Feishu server
 
