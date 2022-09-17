@@ -15,6 +15,8 @@ import requests
 import get_data_from_feishu
 from collections import deque
 import threading
+import logging
+from logging.handlers import RotatingFileHandler
 
 # Random string, used to encrypt
 NONCE_STR = os.urandom(12).hex()
@@ -48,6 +50,17 @@ SQLALCHEMY__DB_URI = 'mysql+pymysql://{}:{}@{}:{}/{}'.format(DB_USER, DB_PASSWD,
 my_app.config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY__DB_URI
 my_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # 关闭对模型修改的监控
 my_app.config['SECRET_KEY'] = SECRET_KEY
+
+my_app.config['LOG_FILE_FILENAME'] = "okrserver.log"
+
+fileHandler = RotatingFileHandler(
+    my_app.config['LOG_FILE_FILENAME'],
+    maxBytes=2 * 1024 * 1024,
+    backupCount=3,
+    encoding="UTF-8"
+)
+my_app.logger.addHandler(fileHandler)
+my_app.logger.setLevel(logging.DEBUG)
 
 
 # Flask error handler
@@ -320,6 +333,7 @@ def load_users_tbl_to_redis():
     load users table information to redis as cache.
     Also build up the leader tree
     """
+
     users = Users.query.all()
     for user in users:
         rds.hset(name=user.open_id, key='okr', value=user.okr)
@@ -348,14 +362,14 @@ def update_search_str_in_redis():
     return 'success'.
     
     """
-    my_utils.my_log('Entering update_search_str_in_redis', level='DEBUG')
+    my_app.logger.debug('Entering update_search_str_in_redis')
     tup = Okr_server_msg.query.filter_by(name=SEGS_CHANGED).first()
 
     changed_seg_list = []
 
     if tup:  # tup[0] should be segs string delimiter by ;
         changed_seg_list = tup.value.split(';')
-    my_utils.my_log(changed_seg_list, level='DEBUG')
+    my_app.logger.debug(changed_seg_list)
     for key in rds.scan_iter('#search_str#*'):
         search_str_list = re.split(r"[ ]+", key)  # one blank or multiple blank as split
         # there are changed set appears in the key, we need delete the key
@@ -376,7 +390,7 @@ def get_ordered_open_id_list(search_str):
     """
     # it is the final open_id list
     ordered_open_id_list = rds.lrange('#search_str#' + search_str, 0, -1)
-    my_utils.my_log('open id length is %s' % len(ordered_open_id_list), level='DEBUG')
+    my_app.logger.debug('open id length is %s' % len(ordered_open_id_list))
 
     if not ordered_open_id_list:
         high_recommend_amount = 0
@@ -531,7 +545,7 @@ def rm_subscribe(open_id, key_word):
     Return:
         'success' or <error message>
     """
-    my_utils.my_log('rm_subscribe is called, keyword is %s' % key_word, level='DEBUG')
+    my_app.logger.debug('rm_subscribe is called, keyword is %s' % key_word)
 
     record = Sbscrb.query.get(key_word)
     if not record:
@@ -632,7 +646,7 @@ def send_notify_messages(notify_dic, title="okrExplorer Subscription Notificatio
     for subscriber in notify_dic.keys():
         for key_word, display_list in notify_dic[subscriber].items():
             head_content_block = []
-            my_utils.my_log("sending message keyword is %s" % key_word, level='DEBUG')
+            my_app.logger.debug("sending message keyword is %s" % key_word)
             # for one key word
             tag_block = {"tag": "a",
                          "href": OKREX_APP_URL,
@@ -666,9 +680,9 @@ def send_notify_messages(notify_dic, title="okrExplorer Subscription Notificatio
         result = get_data_from_feishu.send_notify(subscriber, msgContent)
 
         if result != 0:
-            my_utils.my_error("Error sending msg to %s" % subscriber)
+            my_app.logger.error("Error sending msg to %s" % subscriber)
         else:
-            my_utils.my_log("successfully send msg to %s" % subscriber, level='DEBUG')
+            my_app.logger.debug("successfully send msg to %s" % subscriber)
 
     return True
 
@@ -718,7 +732,7 @@ def rebuild_sbscrb_notify():
     #   ...
     # }
 
-    my_utils.my_log('start to rebuild_sbscrb_notify ', level='DEBUG')
+    my_app.logger.debug('start to rebuild_sbscrb_notify ')
 
     notify_dict = {}
 
@@ -731,8 +745,8 @@ def rebuild_sbscrb_notify():
         temp_dict[record.keyword] = new_mentioner_id_list
         delta = set(new_mentioner_id_list) - set(record.open_ids.split(';'))
         delta_list = list(delta)
-        my_utils.my_log('delta list for the keyword %s:' % record.keyword, level='DEBUG')
-        my_utils.my_log(delta_list, level='DEBUG')
+        my_app.logger.debug('delta list for the keyword %s:' % record.keyword)
+        my_app.logger.debug(delta_list)
         if delta_list:
             search_display_list = cal_urls_dict(delta_list, record.keyword)
 
@@ -812,7 +826,7 @@ def get_obj_list_from_okr_str(okr_str):
     try:
         data = json.loads(okr_str, strict=False)
     except Exception as e:
-        my_utils.my_error(e)
+        my_app.logger.error(e)
 
     return data['objective_list']
 
@@ -855,7 +869,7 @@ def mentioned_people_list(obj):
             for mentioned in kr['mentioned_user_list']:
                 mentioned_list.append(mentioned['open_id'])
     except Exception as e:  # some one do not have kr_list
-        my_utils.my_error(e)
+        my_app.logger.error(e)
 
     return list(set(mentioned_list))
 
@@ -902,7 +916,7 @@ def heartbeat():
     expired
     """
     command = 'curl -X GET http://127.0.0.1:%s/heartbeat?rb=%s' % (OKREX_SERVER_PORT, RB_CODE)
-    my_utils.my_log('thread %s is running...' % threading.current_thread().name, level='DEBUG')
+    my_app.logger.debug('thread %s is running...' % threading.current_thread().name)
     while True:
         time.sleep(2 * 3600)
         try:
@@ -910,10 +924,10 @@ def heartbeat():
             content = stream.read()
             data = json.loads(content)
         except Exception as e:
-            my_utils.my_error(e)
-        my_utils.my_log(data, level='DEBUG')
+            my_app.logger.error(e)
+        my_app.logger.debug(data)
 
-    my_utils.my_log('thread %s ended.' % threading.current_thread().name, level='DEBUG')
+    my_app.logger.debug('thread %s ended.' % threading.current_thread().name)
     return data
 
 
@@ -1029,7 +1043,7 @@ def get_user():
 
 @my_app.route("/subscribe", methods=["GET"])
 def get_subscribe():
-    my_utils.my_log('current user is %s' % session['user'], level='DEBUG')
+    my_app.logger.debug('current user is %s' % session['user'])
     key_word = request.args.get("key")
     if key_word:  # add one subscription for the user
         msg = add_subscribe(session['user'], key_word)
@@ -1070,7 +1084,7 @@ def get_unsubscribe():
 @my_app.route('/rb_users')
 def get_rebuild_users():
     rb_str = request.args.get('rb')
-    my_utils.my_log(rb_str, level='DEBUG')
+    my_app.logger.debug(rb_str)
     if rb_str == RB_CODE:
         load_users_tbl_to_redis()
         return jsonify(
@@ -1133,7 +1147,7 @@ def search():
     else:
         pass
 
-    my_utils.my_log('search str is %s' % search_str, level='DEBUG')
+    my_app.logger.debug('search str is %s' % search_str)
 
     if search_str == '':
         return render_template('index.html')
@@ -1188,14 +1202,14 @@ def get_rebuild():
         # when it arrives here,it means possibly the uers table has been updated and key2user table also be updated
         # so reload the users table from TiDB to redis
         load_users_tbl_to_redis()
-        my_utils.my_log('Finished load_users_tbl_to_redis', level='DEBUG')
+        my_app.logger.debug('Finished load_users_tbl_to_redis')
         # update the redis cache for the search_str
-        my_utils.my_log('update the redis cache for the search_str', level='DEBUG')
+        my_app.logger.debug('update the redis cache for the search_str')
         update_search_str_in_redis()
         # start rebuild the sbscrb table and notify subscribers
-        my_utils.my_log('start rebuild the sbscrb table and notify subscribers', level='DEBUG')
+        my_app.logger.debug('start rebuild the sbscrb table and notify subscribers')
         rebuild_sbscrb_notify()
-        my_utils.my_log('Finished rebuild the sbscrb table and notify subscribers', level='DEBUG')
+        my_app.logger.debug('Finished rebuild the sbscrb table and notify subscribers')
         return jsonify(
             {
                 "message": "success"
@@ -1215,7 +1229,7 @@ def send_heartbeat():
     rb_str = request.args.get('rb')
     if rb_str == RB_CODE:
         keep_alive()
-        my_utils.my_log('Finished keep_alive', level='DEBUG')
+        my_app.logger.debug('Finished keep_alive')
         return jsonify(
             {
                 "message": "success"
@@ -1372,11 +1386,11 @@ class Searchdisplay():
         self.avatar = avatar
 
 
+# load users to redis as the initialization
+load_users_tbl_to_redis()
 if __name__ == '__main__':
     t = threading.Thread(target=heartbeat, name='okrExHeartbeat')
     t.setDaemon(True)
     t.start()
-    my_utils.init_log('okrserver.log', level='DEBUG')
-    # load users to redis as the initialization
-    load_users_tbl_to_redis()
+    my_app.logger.debug('Starting...OkrEx')
     my_app.run(host='0.0.0.0', port=int(OKREX_SERVER_PORT), debug=True)
