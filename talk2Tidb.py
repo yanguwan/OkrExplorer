@@ -334,14 +334,3 @@ def create_tbl_alike(db, tbl):
     query_tidb_okr(db, sql)
     return tbl_like
 
-
-# Test area
-"""
-db = connect_tidb_okr()
-import my_utils
-tup = get_okr_str_by_openid(db, 'ou_056439b7ac1b500d4bf0ccb93e587751')
-okr_content, objs, no_kr = my_utils.get_okrcontent_from_okr_str(tup[0][0], ['预测','主动'])
-print(okr_content)
-print(objs,no_kr)
-close_tidb_okr(db)
-"""
