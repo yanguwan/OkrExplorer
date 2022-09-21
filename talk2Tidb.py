@@ -35,7 +35,8 @@ def close_tidb_okr(db):
         db.close()
 
 
-def replace_user_entry(db, tbl, open_id, okr_str, name, url_id, email, en_name, leader, avatar, segs, hashcode,
+def replace_user_entry(db, tbl, open_id, okr_str, name, url_id, email, en_name, leader, avatar, avail_obj, obj_nokr,
+                       segs, hashcode,
                        hasupdate):
     """
     Args:
@@ -63,18 +64,20 @@ def replace_user_entry(db, tbl, open_id, okr_str, name, url_id, email, en_name, 
 
     cursor = db.cursor()
 
-    sql = "replace into %s values('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s',%s)" % (tbl,
-                                                                                            open_id,
-                                                                                            okr_str,
-                                                                                            name,
-                                                                                            url_id,
-                                                                                            email,
-                                                                                            en_name,
-                                                                                            leader,
-                                                                                            avatar,
-                                                                                            segs,
-                                                                                            hashcode,
-                                                                                            hasupdate)
+    sql = "replace into %s values('%s','%s','%s','%s','%s','%s','%s','%s',%s,%s,'%s','%s',%s)" % (tbl,
+                                                                                                  open_id,
+                                                                                                  okr_str,
+                                                                                                  name,
+                                                                                                  url_id,
+                                                                                                  email,
+                                                                                                  en_name,
+                                                                                                  leader,
+                                                                                                  avatar,
+                                                                                                  avail_obj,
+                                                                                                  obj_nokr,
+                                                                                                  segs,
+                                                                                                  hashcode,
+                                                                                                  hasupdate)
 
     try:
         cursor.execute(sql)
@@ -89,7 +92,6 @@ def replace_user_entry(db, tbl, open_id, okr_str, name, url_id, email, en_name, 
 
 
 def build_key2user_by_key(db, tbl, key, open_id):
-
     sql = "select seg,open_id_list from %s where seg='%s'" % (tbl, key)
     data = query_tidb_okr(db, sql)
 
@@ -243,8 +245,21 @@ def clear_howchanged(db, tbl):
     sql = "update %s set howchanged=''" % tbl
     query_tidb_okr(db, sql)
 
+
 def get_all_changed_keys(db, tbl, howchanged):
     sql = "select seg,howchanged from %s where howchanged='%s'" % (tbl, howchanged)
+    return query_tidb_okr(db, sql)
+
+
+def get_one_from_tbl_by_cols_with_openid(db, tbl, cols, open_id):
+    """
+    Args:
+        cols, tuple contains the cols the caller specified
+        open_id, String, must a be column in the <tbl>
+    Get one tuple from table by the cols with the specified open_id
+
+    """
+    sql = "select %s from %s where open_id='%s'" % (','.join(cols), tbl, open_id)
     return query_tidb_okr(db, sql)
 
 
@@ -333,4 +348,3 @@ def create_tbl_alike(db, tbl):
     sql = 'create table %s like %s' % (tbl_like, tbl)
     query_tidb_okr(db, sql)
     return tbl_like
-
