@@ -463,7 +463,8 @@ def get_ordered_open_id_list(search_str):
         # also keep the high_recommend_amount into redis
         rds.set('#high_recommend#' + search_str, high_recommend_amount)
     else:
-        high_recommend_amount = int(rds.get('#high_recommend#' + search_str))
+        high_recommend_amount = rds.get('#high_recommend#' + search_str)
+        high_recommend_amount = int(high_recommend_amount) if high_recommend_amount else 0
 
     return ordered_open_id_list, high_recommend_amount
 
@@ -1333,6 +1334,9 @@ class Users(db.Model):
     en_name = db.Column(db.String(64))
     leader = db.Column(db.String(64))
     avatar = db.Column(db.String(256))
+    avail_obj = db.Column(db.Integer)
+    obj_nokr = db.Column(db.Integer)     # the number of Objs that do not have KR
+
 
 
 class Sbscrb(db.Model):

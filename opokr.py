@@ -33,15 +33,19 @@ def cal_avail_okr_count_by_dep(db, dep_id):
     my_utils.my_log('user number is %s' % len(user_list), level='DEBUG')
 
     avail = 0
+
     not_health_user_id_list = []
 
+    cols = ('open_id', 'avail_obj', 'obj_nokr')
+
     for user in user_list:
-        tup_okr = talk2Tidb.get_okr_str_by_openid(db, user)
-        if not tup_okr or not tup_okr[0]:
+        tup = talk2Tidb.get_one_from_tbl_by_cols_with_openid(db, 'users', cols, user)
+        if not tup or not tup[0]:
             my_utils.my_error('empty tup')
             continue
-        okr_content, objs, no_kr = my_utils.get_okrcontent_from_okr_str(tup_okr[0][0])
-        if objs > 0 and no_kr <= 0: # objs = 0 or no_kr >0 are unhealthy
+        objs = int(tup[0][1])
+        no_kr = int(tup[0][2])
+        if objs > 0 and no_kr <= 0:  # objs = 0 or no_kr >0 are unhealthy
             avail += 1
         else:
             not_health_user_id_list.append(user)
@@ -111,7 +115,7 @@ def _get_item(p, t):
     return ()
 
 
-def update_key2user_tbl_with_users_change(db, users_alike,  key2user_alike=''):
+def update_key2user_tbl_with_users_change(db, users_alike, key2user_alike=''):
     """
     Args:
         db, the connector
@@ -288,15 +292,18 @@ def update_user_tbl_from_feishu(mode):
 
         okr_dict = get_data_from_feishu.get_latest_okr_by_open_id(open_id)
 
+        avail_obj, obj_nokr = my_utils.cal_avail_obj_by_okr_dict(okr_dict)
+
         okr_str = json.dumps(okr_dict, ensure_ascii=False)  # in case of the Chinese mess
+
+        okr_content, nil, nil = my_utils.get_okrcontent_from_okr_str(okr_str)
 
         okr_str = okr_str.replace('\\', '\\\\')  # mysql will eat \, need change it to be \\
 
         okr_str = okr_str.replace("'", "\\'")  # okr_str cannot have ', will affect sql insert, change it to be \'
 
-        okr_content, nil, nil = my_utils.get_okrcontent_from_okr_str(okr_str)
-
         seg_list = my_seg.my_seg(okr_content)
+
         hashcode = hashlib.md5(okr_content.encode('utf-8')).hexdigest()
 
         talk2Tidb.replace_user_entry(db=db,
@@ -309,6 +316,8 @@ def update_user_tbl_from_feishu(mode):
                                      en_name=en_name,
                                      leader=leader,
                                      avatar=avatar,
+                                     avail_obj=avail_obj,
+                                     obj_nokr=obj_nokr,
                                      segs=';'.join(seg_list),
                                      hashcode=hashcode,
                                      hasupdate=0)
@@ -418,5 +427,6 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    my_utils.init_log('opokr.log',level='DEBUG')
+    my_utils.init_log('opokr.log', level='DEBUG')
     main(sys.argv[1:])
+

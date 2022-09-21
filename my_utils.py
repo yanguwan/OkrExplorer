@@ -79,11 +79,12 @@ def single_asc(a):
     return ord(a) < 128 if len(a) == 1 else False
 
 
-def get_okrcontent_from_okr_str(okr_str, seg_list=[]):
+def get_okrcontent_from_okr_str(okr_str, seg_list=[], app=None):
     """
     Args:
         okr_str: String, transferred from okr dict
         seg_list: List, the segmentation list to match okr content. default is Null
+        app: The flask app, means the caller is from Flask. default is Null
         Return:
             String. Contain the real content consistent of Objs+KRs, and the number of the health objs.
             if seg, only return the Objs or KR contains any of the segs
@@ -116,7 +117,10 @@ def get_okrcontent_from_okr_str(okr_str, seg_list=[]):
             else:
                 no_kr += 1
     except Exception as e:
-        my_error('%s: okr_str is %s' % (e, okr_str))
+        if not app:
+            my_error('%s: okr_str is %s' % (e, okr_str))
+        else:
+            app.logger.error('%s: okr_str is %s' % (e, okr_str))
 
     return '\n'.join(okr_content_list), avail_objs, no_kr
 
@@ -133,3 +137,15 @@ def add_to_list(to_list, list_semicol):
 # the function is to order dict by the value
 def list_from_dict_by_val(url_priority_dict):
     return sorted(url_priority_dict.items(), key=lambda x: x[1], reverse=True)
+
+
+def cal_avail_obj_by_okr_dict(okr_dict):
+    avail_objs = 0  # how many healthy objs under this OKR
+    no_kr = 0      # how many OBJs that has no any KR
+    for obj in okr_dict['objective_list']:
+        if 'kr_list' in obj.keys():
+            avail_objs += 1  # A healthy obj must have kr
+        else:
+            no_kr += 1
+
+    return avail_objs, no_kr
