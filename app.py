@@ -369,8 +369,8 @@ def update_search_str_in_redis():
         changed_seg_set = set(tup.value.split(';'))
     my_app.logger.debug(changed_seg_set)
     for key in rds.scan_iter('#search_str#*'):
-        key = key.replace('#search_str#', '')  # cut off the header
-        search_str_list = re.split(r"[ ]+", key)  # one blank or multiple blank as split
+        _key = key.replace('#search_str#', '')  # cut off the header
+        search_str_list = re.split(r"[ ]+", _key)  # one blank or multiple blank as split
         # there are changed set appears in the key, we need delete the key
         if changed_seg_set & set(search_str_list):
             rds.delete(key)
