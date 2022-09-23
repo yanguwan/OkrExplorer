@@ -141,8 +141,7 @@ def update_tidb_key2user_by_key(db, key, open_id, add, obj):
 
     cursor = db.cursor()
     sql = "select seg,open_id_list from key2user where seg='%s'" % key
-    data = []
-    query_tidb_okr(db, sql)
+    data = query_tidb_okr(db, sql)
 
     if not data:  # if empty tuple
         if add:  # trying to add the open_id to the key
