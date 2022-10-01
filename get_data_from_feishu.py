@@ -174,7 +174,8 @@ def get_all_second_level_departs():
     return second_level_departs
 
 
-def get_direct_user_dicts_in_dep(dep_id):
+def _get_direct_user_dicts_in_dep(dep_id):
+
     user_dict_list = []
 
     tenant_access_token, app_access_token = get_access_token()
@@ -198,28 +199,36 @@ def get_direct_user_dicts_in_dep(dep_id):
             for user in data['data']['items']:
                 if user not in user_dict_list:
                     user_dict_list.append(user)
-    except Exception as e:
-        my_error(e)
 
-    while 'has_more' in data['data'].keys() and data['data']['has_more']:
+        while 'has_more' in data['data'].keys() and data['data']['has_more']:
 
-        page_token = data['data']['page_token']
+            page_token = data['data']['page_token']
 
-        new_url = url + '&page_token=' + page_token
+            new_url = url + '&page_token=' + page_token
 
-        response = requests.request("GET", new_url, headers=headers, data=payload)
+            response = requests.request("GET", new_url, headers=headers, data=payload)
 
-        data = json.loads(response.text)
+            data = json.loads(response.text)
 
-        try:
             if 'items' in data['data'].keys():
                 for user in data['data']['items']:
                     if user not in user_dict_list:
                         user_dict_list.append(user)
-        except Exception as e:
-            my_error(e)
+
+    except Exception as e:
+        my_error(e)
+        return []
 
     return user_dict_list
+
+
+def get_direct_user_dicts_in_dep(dep_id):
+    retry = 3
+    result = _get_direct_user_dicts_in_dep(dep_id)
+    while result == [] and retry > 0:
+        retry -= 1
+        result = _get_direct_user_dicts_in_dep(dep_id)
+    return result
 
 
 def get_direct_user_ids_in_dep(open_id):
@@ -383,7 +392,15 @@ def get_user_by_temp_auth(auth):
     return data['data']
 
 
-def send_notify(app, to_open_id, msg_content):
+def send_notify(app, to_open_id, msg_content, msg_type):
+    """
+    Args:
+        app, the Flask app obj, used to log correct message.
+        to_open_id, String, the open id the message go to
+        msg_content, see
+        https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/im-v1/message/create_json#c9e08671
+        msg_type:String, text, post, image,audio etc. Usally it is text or post.
+    """
     url = "https://open.feishu.cn/open-apis/im/v1/messages"
     tenant_access_token, app_access_token = get_access_token()
     params = {"receive_id_type": "open_id"}
@@ -391,7 +408,7 @@ def send_notify(app, to_open_id, msg_content):
     req = {
         "receive_id": to_open_id,
         "content": json.dumps(msg_content),
-        "msg_type": "post"
+        "msg_type": msg_type
     }
     payload = json.dumps(req)
     headers = {

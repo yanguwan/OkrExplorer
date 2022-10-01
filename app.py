@@ -620,6 +620,23 @@ def cal_urls_dict(open_id_list, search_str):
     return final_display_list(open_id_list, search_str, pagesize=10, em=False)
 
 
+def send_admin_message(adminID, who_id, what):
+    """
+    Args:
+        adminID, String, the open id the message go to
+        who_id, String, the open id the objective
+        what, String, what he/she has done
+
+    sb done some things, in content_text should be
+    <at user_id="ou_xxx">name</at> done something
+    """
+    msgContent = {
+        "text": "<at user_id=\"%s\">%s</at> %s" % (who_id, rds.hget(name=who_id, key='name'), what)
+    }
+
+    get_data_from_feishu.send_notify(my_app, adminID, msgContent, 'text')
+
+
 def send_notify_messages(notify_dic, title="okrExplorer Subscription Notification"):
     """
     Argus:
@@ -685,7 +702,7 @@ def send_notify_messages(notify_dic, title="okrExplorer Subscription Notificatio
                 msgContent['en_us']['content'].append(body_content_block)  # push body
 
         # for each subscriber, send one notification msg
-        result = get_data_from_feishu.send_notify(my_app, subscriber, msgContent)
+        result = get_data_from_feishu.send_notify(my_app, subscriber, msgContent, 'post')
 
         if result != 0:
             my_app.logger.error("Error sending msg to %s" % subscriber)
@@ -781,6 +798,8 @@ def rebuild_sbscrb_notify():
             record.open_ids = ';'.join(new_mentioner_id_list)
             record.subs_date = datetime.datetime.today()
             db.session.commit()
+
+    send_admin_message(DEBUG_USER_ID, DEBUG_USER_ID, 'rebuild the system. %s' % json.dumps(notify_dict))
 
 
 def get_departments_health_info(parent):
@@ -1158,6 +1177,8 @@ def search():
 
     if search_str == '':
         return render_template('index.html')
+
+    send_admin_message(DEBUG_USER_ID, username, 'searched %s' % search_str)
 
     display, count, pages_list = basic_search(search_str)
 
