@@ -59,6 +59,8 @@ fileHandler = RotatingFileHandler(
     backupCount=3,
     encoding="UTF-8"
 )
+formatter = logging.Formatter('%(asctime)s %(filename)s %(levelname)s %(process)d %(message)s')
+fileHandler.setFormatter(formatter)
 my_app.logger.addHandler(fileHandler)
 my_app.logger.setLevel(logging.DEBUG)
 
@@ -1024,10 +1026,13 @@ def get_objs_stat_info(open_id):
                                URL_BASE + rds.hget(name=o_id, key='url_id'),  # we can optimize here later
                                rds.hget(name=o_id, key='avatar')]
                               for o_id in people_list_invisible]
-    return obj_stat_list, \
-           _people_list_invisible, \
-           float('%.1f' % ((1 - len(people_list_invisible) / len(people_on_total)) * 100)), \
-           float(len(people_external_leverage) / len(people_on_total))
+    if len(people_on_total) > 0:
+        return obj_stat_list, \
+               _people_list_invisible, \
+               float('%.1f' % ((1 - len(people_list_invisible) / len(people_on_total)) * 100)), \
+               float(len(people_external_leverage) / len(people_on_total))
+    else:
+        return obj_stat_list, _people_list_invisible, 0.0, 0.0
 
 
 def get_top_search_keyword(num):
@@ -1157,6 +1162,7 @@ def get_config_parameters():
 def search():
     if not session['user']:
         return render_template('404.html')
+    my_app.logger.debug('current user is %s' % session['user'])
 
     t1 = time.time()
 
@@ -1275,6 +1281,7 @@ def send_heartbeat():
 def get_health():
     if not session['user']:
         return render_template('404.html')
+    my_app.logger.debug('current user is %s' % session['user'])
     who = request.args.get('who')
 
     if not who:
@@ -1300,6 +1307,7 @@ def get_health():
 def get_graph():
     if session['user'] == '':
         return render_template('404.html')
+    my_app.logger.debug('current user is %s' % session['user'])
     who = request.args.get('who')
     objs_list = []
     if not who:  # return the current user's
