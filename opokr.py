@@ -355,20 +355,20 @@ def rebuild_base(mode='soft'):
     t1 = time.time()
     update_user_tbl_from_feishu(mode)
     t2 = time.time()
-    elasped = (t2 - t1) * 1000
-    my_utils.my_log('Finished users table and key2user update, used %.3f milliseconds' % elasped, level='DEBUG')
+    elasped = (t2 - t1) * 1000000
+    my_utils.my_log('Finished users table and key2user update, used %.3f seconds' % elasped, level='DEBUG')
     t1 = time.time()
     build_departments_tbl()
     t2 = time.time()
-    elasped = (t2 - t1) * 1000
-    my_utils.my_log('Finished departments table update, used %.3f milliseconds' % elasped, level='DEBUG')
+    elasped = (t2 - t1) * 1000000
+    my_utils.my_log('Finished departments table update, used %.3f seconds' % elasped, level='DEBUG')
     # tell okrEx Server to update the local redis user table
     t1 = time.time()
     data = okrEx_refresh_cycle()
     t2 = time.time()
-    elasped = (t2 - t1) * 1000
-    my_utils.my_log('Got feedback from okr server for internal update, used %.3f milliseconds' % elasped, level='DEBUG')
-    my_utils.my_log('Message is %s' % data['message'], level='DEBUG')
+    elasped = (t2 - t1) * 1000000
+    my_utils.my_log('Got feedback from okr server for internal update, used %.3f seconds' % elasped, level='DEBUG')
+    # my_utils.my_log('Message is %s' % data['message'], level='DEBUG')
 
 
 def house_keep():
