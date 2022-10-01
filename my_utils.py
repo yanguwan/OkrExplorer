@@ -1,23 +1,33 @@
 # -*- coding: utf-8 -*-
 import inspect
 import logging
+from logging.handlers import RotatingFileHandler
 import os
 import datetime
 import json
 
 
 def init_log(logfile, level='WARNING'):
-    # print('init_log to %s...' % logfile)
+    logger = logging.getLogger('')
+
+    Rthandler = RotatingFileHandler(logfile, maxBytes=10 * 1024 * 1024, backupCount=5)
+
     if level == 'DEBUG':
-        logging.basicConfig(filename=logfile, encoding='utf-8', level=logging.DEBUG)
+        level = logging.DEBUG
     elif level == 'ERROR':
-        logging.basicConfig(filename=logfile, encoding='utf-8', level=logging.ERROR)
+        level = logging.ERROR
     elif level == 'WARNING':
-        logging.basicConfig(filename=logfile, encoding='utf-8', level=logging.WARNING)
+        level = logging.WARNING
     elif level == 'INFO':
-        logging.basicConfig(filename=logfile, encoding='utf-8', level=logging.INFO)
+        level = logging.INFO
     else:
-        logging.basicConfig(filename=logfile, encoding='utf-8', level=logging.WARNING)
+        level = logging.WARNING
+
+    logger.setLevel(level)
+
+    formatter = logging.Formatter('%(asctime)s %(filename)s %(levelname)s %(process)d %(message)s')
+    Rthandler.setFormatter(formatter)
+    logger.addHandler(Rthandler)
 
 
 def delete_duplicate_list(li):
@@ -37,7 +47,8 @@ def my_error(e):
         datetime.datetime.today(), os.getpid(), inspect.stack()[1].function, e)
 
     # logging.debug(message)
-    logging.log(logging.ERROR, message)
+    logger = logging.getLogger('')
+    logger.error(message)
 
 
 def my_log(msg, level='DEBUG'):
@@ -47,17 +58,24 @@ def my_log(msg, level='DEBUG'):
 
     The function will display the log messages
     """
+    logger = logging.getLogger('')
+
     if level == 'DEBUG':
-        lev = logging.DEBUG
+        # lev = logging.DEBUG
+        logger.debug(msg)
     elif level == 'ERROR':
-        lev = logging.ERROR
+        # lev = logging.ERROR
+        logger.error(msg)
     elif level == 'WARNING':
-        lev = logging.WARNING
+        # lev = logging.WARNING
+        logger.warn(msg)
     elif level == 'INFO':
-        lev = logging.INFO
+        # lev = logging.INFO
+        logger.info(msg)
     else:
-        lev = logging.DEBUG
-    logging.log(lev, "%s:%s" % (datetime.datetime.today(), msg))
+        # lev = logging.DEBUG
+        logger.debug(msg)
+    # logging.log(lev, "%s:%s" % (datetime.datetime.today(), msg))
     # print('%s(): %s' % (inspect.stack()[1].function, log))
 
 
@@ -126,7 +144,6 @@ def get_okrcontent_from_okr_str(okr_str, seg_list=[], app=None):
 
 
 def add_to_list(to_list, list_semicol):
-
     _list = list_semicol.split(';')
 
     for li in _list:
@@ -141,7 +158,7 @@ def list_from_dict_by_val(url_priority_dict):
 
 def cal_avail_obj_by_okr_dict(okr_dict):
     avail_objs = 0  # how many healthy objs under this OKR
-    no_kr = 0      # how many OBJs that has no any KR
+    no_kr = 0  # how many OBJs that has no any KR
     for obj in okr_dict['objective_list']:
         if 'kr_list' in obj.keys():
             avail_objs += 1  # A healthy obj must have kr

@@ -41,7 +41,7 @@ def cal_avail_okr_count_by_dep(db, dep_id):
     for user in user_list:
         tup = talk2Tidb.get_one_from_tbl_by_cols_with_openid(db, 'users', cols, user)
         if not tup or not tup[0]:
-            my_utils.my_error('empty tup')
+            my_utils.my_error('empty tup,user is %s, depart is %s' % (user, dep_id))
             continue
         objs = int(tup[0][1])
         no_kr = int(tup[0][2])
@@ -160,9 +160,9 @@ def update_key2user_tbl_with_users_change(db, users_alike, key2user_alike=''):
     my_utils.my_log('user disappear', level='DEBUG')
     my_utils.my_log(users_id_disappeared)
     users_id_new = set(tup_new_id_list) - set(tup_old_id_list)
-    users_id_changed = set(tup_old_id_list) & set(tup_new_id_list)
-    my_utils.my_log('user change', level='DEBUG')
-    my_utils.my_log(users_id_changed, level='DEBUG')
+    users_id_may_changed = set(tup_old_id_list) & set(tup_new_id_list)
+    my_utils.my_log('user may changed', level='DEBUG')
+    my_utils.my_log(users_id_may_changed, level='DEBUG')
 
     for user_id in users_id_disappeared:
         user = _get_item(user_id, tup_old)
@@ -193,7 +193,7 @@ def update_key2user_tbl_with_users_change(db, users_alike, key2user_alike=''):
                                                           add=True,
                                                           obj=False)
     # handle the change ones by the hashcode
-    for user_id in users_id_changed:
+    for user_id in users_id_may_changed:
         user_old = _get_item(user_id, tup_old)
         user_new = _get_item(user_id, tup_new)
         if user_old[3] != user_new[3]:  # hashcode are different, content changed
@@ -429,4 +429,3 @@ def main(argv):
 if __name__ == "__main__":
     my_utils.init_log('opokr.log', level='DEBUG')
     main(sys.argv[1:])
-
