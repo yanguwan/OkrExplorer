@@ -2,6 +2,7 @@
 import requests
 import json
 import os
+import time
 import my_utils
 from my_utils import my_error, my_log
 from dotenv import load_dotenv, find_dotenv
@@ -13,12 +14,23 @@ APP_ID = os.getenv("APP_ID")
 APP_SECRET = os.getenv("APP_SECRET")
 FEISHU_HOST = os.getenv("FEISHU_HOST")
 
-CURRENT_PERIOD = "2022 年 7 月 - 9 月"
+CURRENT_PERIOD = "2022 年 10 月 - 12 月"
+
+token_expire = time.time()
+
+tenant_access_token = ''
 
 
 # get the tenant_access_token
-
 def get_access_token():
+    global token_expire
+    global tenant_access_token
+
+    now = time.time()
+
+    if now < token_expire - 10 and tenant_access_token:
+        return tenant_access_token, ''
+
     url = "https://open.feishu.cn/open-apis/auth/v3/app_access_token/internal"
 
     payload = json.dumps({
@@ -33,12 +45,21 @@ def get_access_token():
     response = requests.request("POST", url, headers=headers, data=payload)
 
     data = json.loads(response.text)
-
-    app_access_token = data['app_access_token']
+    """
+    data is dict with
+    app_access_token
+    code
+    expire
+    msg
+    tenant_access_token
+    """
+    # app_access_token = data['app_access_token']
 
     tenant_access_token = data['tenant_access_token']
 
-    return tenant_access_token, app_access_token
+    token_expire = time.time() + data['expire']
+
+    return tenant_access_token, ''
 
 
 def get_all_child_departments(dep_id):
