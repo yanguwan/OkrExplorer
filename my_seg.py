@@ -39,7 +39,10 @@ def my_seg(to_seg_str):
 
     for seg in seg_list:
         seg = seg.strip()
-        if seg and not my_utils.single_asc(seg) and seg not in stop_words_list and seg.find(';') < 0:
+        if seg \
+                and not my_utils.single_asc(seg) \
+                and seg not in stop_words_list \
+                and seg.find(';') < 0:
             seged_list.append(seg.lower())  # to make non case-insensitive, uniform to lower case
 
     return list(set(seged_list))

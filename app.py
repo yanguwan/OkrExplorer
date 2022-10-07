@@ -236,6 +236,49 @@ def _is_subordinate(leader_open_id, open_id):
     return False
 
 
+def get_search_display_similarites(open_id):
+    current_user = Users.query.filter_by(open_id=open_id).first()
+
+    if not current_user or not current_user.top_related:
+        return []
+
+    display_list = []
+
+    search_str_list = current_user.segs.split(';')
+
+    for user_id in current_user.top_related.split(';'):
+        sd = Searchdisplay()
+        sd.whose = rds.hget(name=user_id, key='name')
+        sd.who_id = user_id
+        sd.url = URL_BASE + rds.hget(name=user_id, key='url_id')
+        okr_str = rds.hget(name=user_id, key='okr')
+        okr_content, nil, nil = my_utils.get_okrcontent_from_okr_str(okr_str,
+                                                                     seg_list=search_str_list,
+                                                                     app=my_app)
+        beg_em_str = '<em style="color:red;">'
+        end_em_str = '</em>'
+        """
+        for seg in search_str_list:
+            reg = re.compile(re.escape(seg), re.IGNORECASE)
+            okr_content = reg.sub(beg_em_str + seg + end_em_str, okr_content)
+        """
+
+        okr_contet_list = re.split(r"[ ]+", okr_content)
+
+        for seg in search_str_list:
+            for i in range(len(okr_contet_list)):
+                if okr_contet_list[i] == seg:
+                    okr_contet_list[i] = beg_em_str + seg + end_em_str
+
+        okr_content = ' '.join(okr_contet_list)
+
+        sd.okr_content = okr_content
+        sd.highly = ''
+        sd.avatar = rds.hget(name=user_id, key='avatar')
+        display_list.append(sd)
+    return display_list
+
+
 def final_display_list(ordered_open_id_list,
                        search_str,
                        pagesize=20,
@@ -416,19 +459,23 @@ def get_ordered_open_id_list(search_str):
         open_id_priority_dict = {}
 
         for search_item in search_str_list:
-            # record the search into the TiDB as searching history
-            record = Search_rec.query.get(search_item[0:31])
-            if not record:  # there is no the record
-                record = Search_rec(searched_key=search_item[0:31],  # searched_key is 32 long at most
-                                    freq=1,
-                                    search_date=datetime.datetime.today())
-                db.session.add(record)
+            try:
+                # record the search into the TiDB as searching history
+                record = Search_rec.query.get(search_item[0:31])
+                if not record:  # there is no the record
+                    record = Search_rec(searched_key=search_item[0:31],  # searched_key is 32 long at most
+                                        freq=1,
+                                        search_date=datetime.datetime.today())
+                    db.session.add(record)
 
-            else:
-                record.freq += 1
-                record.search_date = datetime.datetime.today()
+                else:
+                    record.freq += 1
+                    record.search_date = datetime.datetime.today()
 
-            db.session.commit()
+                db.session.commit()
+            except Exception as e:  # non critical code, just log when error occurs
+                my_app.logger.error(e)
+
             # try to see if it is people name， use like %{}% to find possible users
 
             like_str = '%{}%'.format(search_item)
@@ -627,7 +674,7 @@ def send_admin_message(adminID, who_id, what):
     Args:
         adminID, String, the open id the message go to
         who_id, String, the open id the objective
-        what, String, what he/she has done
+        what, String, what he/she has done, need to be a simple string, no '"
 
     sb done some things, in content_text should be
     <at user_id="ou_xxx">name</at> done something
@@ -801,7 +848,11 @@ def rebuild_sbscrb_notify():
             record.subs_date = datetime.datetime.today()
             db.session.commit()
 
-    send_admin_message(DEBUG_USER_ID, DEBUG_USER_ID, 'rebuild the system. %s' % json.dumps(notify_dict))
+    send_admin_message(DEBUG_USER_ID,
+                       DEBUG_USER_ID,
+                       'rebuild the system. %s'
+                       % ' '.join([rds.hget(name=open_id, key='name')
+                                   for open_id in notify_dict.keys()]) if notify_dict else '')
 
 
 def get_departments_health_info(parent):
@@ -1184,15 +1235,15 @@ def search():
     if search_str == '':
         return render_template('index.html')
 
-    send_admin_message(DEBUG_USER_ID, username, 'searched %s' % search_str)
-
     display, count, pages_list = basic_search(search_str)
 
     t2 = time.time()
 
-    elapsed = (t2 - t1) * 1000  # in milliseconds
+    elapsed = t2 - t1
 
-    elapsed_str = "Elapsed time: %.3f milliseconds" % elapsed
+    elapsed_str = " %.3f seconds" % elapsed
+
+    send_admin_message(DEBUG_USER_ID, username, 'searched %s' % search_str)
 
     return render_template('result.html',
                            search_str=search_str,
@@ -1214,8 +1265,8 @@ def get_page(page_no=0):
     search_str = request.args.get('s')
     display, count, pages_list = basic_search(search_str, page_no)
     t2 = time.time()
-    elasped = (t2 - t1) * 1000
-    elasped_str = "Elapsed time: %.3f milliseconds" % elasped
+    elasped = t2 - t1
+    elasped_str = " %.3f seconds" % elasped
     username = session['user']
     return render_template('result.html',
                            search_str=search_str,
@@ -1353,6 +1404,16 @@ def get_analytic():
     return render_template('analytic.html', word_list=word_list)
 
 
+@my_app.route('/similarity')
+def get_similarities():
+    """
+    Return the Searchdisplay of my similarieis saved in users table top_related
+
+    """
+    display = get_search_display_similarites(session['user'])
+    return render_template('similarity.html', current_user=rds.hget(name=session['user'], key='name'), display=display)
+
+
 class Key2user(db.Model):
     seg = db.Column(db.String(128), primary_key=True, unique=True, nullable=False)
     open_id_list = db.Column(db.Text)
@@ -1371,6 +1432,8 @@ class Users(db.Model):
     avatar = db.Column(db.String(256))
     avail_obj = db.Column(db.Integer)
     obj_nokr = db.Column(db.Integer)  # the number of Objs that do not have KR
+    top_related = db.Column(db.String(640))  # the top 10 related users with me
+    segs = db.Column(db.Text)
 
 
 class Sbscrb(db.Model):

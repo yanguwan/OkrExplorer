@@ -50,6 +50,9 @@ def replace_user_entry(db, tbl, open_id, okr_str, name, url_id, email, en_name, 
         en_name: String, english name, possible null
         leader: String or '', leader's open id of the user
         avatar: String, URL to the avatar of the user
+        avail_obj:
+        obj_nokr:
+        top_related:String, top 10 people most similar with the user ,; as delimiter
         segs: String of seg list, ; as delimiter
         hashcode: 32 bytes String, md5 value of he okr_str
         hasupdate: int 0 or 1
@@ -64,20 +67,21 @@ def replace_user_entry(db, tbl, open_id, okr_str, name, url_id, email, en_name, 
 
     cursor = db.cursor()
 
-    sql = "replace into %s values('%s','%s','%s','%s','%s','%s','%s','%s',%s,%s,'%s','%s',%s)" % (tbl,
-                                                                                                  open_id,
-                                                                                                  okr_str,
-                                                                                                  name,
-                                                                                                  url_id,
-                                                                                                  email,
-                                                                                                  en_name,
-                                                                                                  leader,
-                                                                                                  avatar,
-                                                                                                  avail_obj,
-                                                                                                  obj_nokr,
-                                                                                                  segs,
-                                                                                                  hashcode,
-                                                                                                  hasupdate)
+    sql = "replace into %s values('%s','%s','%s','%s','%s','%s','%s','%s',%s,%s,'%s','%s','%s',%s)" % (tbl,
+                                                                                                       open_id,
+                                                                                                       okr_str,
+                                                                                                       name,
+                                                                                                       url_id,
+                                                                                                       email,
+                                                                                                       en_name,
+                                                                                                       leader,
+                                                                                                       avatar,
+                                                                                                       avail_obj,
+                                                                                                       obj_nokr,
+                                                                                                       '',
+                                                                                                       segs,
+                                                                                                       hashcode,
+                                                                                                       hasupdate)
 
     try:
         cursor.execute(sql)
@@ -347,3 +351,27 @@ def create_tbl_alike(db, tbl):
     sql = 'create table %s like %s' % (tbl_like, tbl)
     query_tidb_okr(db, sql)
     return tbl_like
+
+
+def value_add(db, tbl, key, col, delta):
+    # for debug purpose
+
+    sql = "select %s from %s where name='%s'" % (col, tbl, key)
+
+    data = query_tidb_okr(db, sql)
+
+    value = data[0][0]
+
+    value = value + ';' + delta
+
+    sql = "update %s set %s='%s' where name='%s'" % (tbl, col, value, key)
+
+    data = query_tidb_okr(db, sql)
+
+
+def update_users_by_open_id(db, users, open_id, open_ids):
+    sql = "update %s set %s='%s' where open_id='%s'" % (users,
+                                                        'top_related',
+                                                        open_ids,
+                                                        open_id)
+    data = query_tidb_okr(db, sql)

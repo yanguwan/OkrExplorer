@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %} My Similarities {% endblock %}
+{% block head %}
+    {{ super() }}
+{% endblock %}
+{% block sidebar_nav1 %}
+           <li class="active">
+                <a href="/similarity">Similarity Info <span class="sr-only">(current)</span></a>
+            </li>
+{% endblock %}
+
+
+{% block bodycontent %}
+
+<h2 class="sub-header">{{current_user}}'s Similarities</h2>
+
+
+<ul class="media-list">
+                {% for item in display %}
+                <li class="media">
+                    <div class="media-left">
+                        <a href="{{item.url}}">
+                            <img src="{{item.avatar}}" alt="{{item.whose}}">
+                        </a>
+                    </div>
+                    <div class="media-body">
+                        <h4>
+                            <a name="sb_okr" href="{{item.url}}" target="_blank">
+                                {{item.whose}}'s OKR
+                            </a>
+                        {% if item.highly %}
+                            <img src="{{url_for('static',filename='okrex.ico')}}" style="width:20px;height:20px;">
+                        {% endif %}
+                        </h4>
+                        {% autoescape false %} <!-- stop escape to support <em> -->
+                        <p>
+                            {{item.okr_content}}
+                        </p>
+                        {% endautoescape %}
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+
+{% endblock %}

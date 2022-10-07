@@ -19,6 +19,8 @@ RB_CODE = os.getenv("RB_CODE")
 OKR_EX_SERVER = os.getenv("OKR_EX_SERVER")
 SBSCRB_CHK_INTERVAL = os.getenv("SBSCRB_CHK_INTERVAL")  # str type, in hours
 SEGS_CHANGED = os.getenv("SEGS_CHANGED")
+# RELEVANCY = os.getenv("RELEVANCY")
+RELEVANCY = '10'  # hard code 10 so far
 
 interval = int(SBSCRB_CHK_INTERVAL)  # the subscribe key table checking interval in hours
 
@@ -237,6 +239,66 @@ def update_okr_server_msg_tbl(db):
     # clear
 
 
+def segs_relevancy(base_segs, comp_segs):
+    """
+    Args:
+        base_segs, String, segs delimiter with ';'
+        com_segs, String, segs delimiter with ';'
+    Return the float of relevancy
+    """
+    if not base_segs or not comp_segs:
+        return 0.0
+
+    base_list = base_segs.split(';')
+    comp_list = comp_segs.split(';')
+
+    interset = list(set(base_list) & set(comp_list))
+
+    return len(interset) / len(base_list)
+
+
+def insert_relevency(top_rel, open_id, relevancy):
+    """
+    Args:
+        top_rel, List of the tuples, each tup is (open_id, relevancey).
+        Only save the top RELEVANCY pair
+    """
+    tup1 = (open_id, relevancy)
+    if len(top_rel) == 0:
+        top_rel.append(tup1)
+    else:
+        for index in range(len(top_rel) if len(top_rel) < int(RELEVANCY) else int(RELEVANCY)):
+            if relevancy < top_rel[index][1]:
+                continue
+        if index < int(RELEVANCY) - 1:
+            top_rel.insert(index, tup1)
+
+
+def cal_top_related(db, users_alike):
+    """
+    Cal the top 10 (at most) who highly related to each user
+    It is N*N time complexity
+    """
+    cols = ('open_id', 'segs')
+    tup = talk2Tidb.get_all_from_tbl_by_cols(db, users_alike, cols)
+
+    for index in range(len(tup)):
+        top_rel = []  # at most 10 elements, each is a tuple (open_id, relevancy)
+        cursor = index + 1
+        while cursor < len(tup):
+            relevancy = segs_relevancy(tup[index][1], tup[cursor][1])
+            if relevancy > 0.0:
+                insert_relevency(top_rel, tup[cursor][0], relevancy)
+            cursor += 1
+
+        if top_rel:
+            top_rel_open_id = ';'.join([t[0] for t in top_rel])
+            my_utils.my_log('top related is %s for user %s' % (top_rel_open_id, tup[index][0]), level='DEBUG')
+            talk2Tidb.update_users_by_open_id(db, users_alike, tup[index][0], top_rel_open_id)
+        else:
+            my_utils.my_log('has not found related user for %s' % tup[index][0], level='DEBUG')
+
+
 def update_user_tbl_from_feishu(mode):
     """
     update the users table through source of Feishu
@@ -328,6 +390,7 @@ def update_user_tbl_from_feishu(mode):
         update_key2user_tbl_with_users_change(db, users_alike, key2user_alike)
     else:
         update_key2user_tbl_with_users_change(db, users_alike)
+    cal_top_related(db, users_alike)
     talk2Tidb.drop_tbl(db, 'users')
     talk2Tidb.rn_tbl(db, users_alike, 'users')
     if mode == 'hard':
@@ -355,20 +418,19 @@ def rebuild_base(mode='soft'):
     t1 = time.time()
     update_user_tbl_from_feishu(mode)
     t2 = time.time()
-    elasped = (t2 - t1) * 1000000
+    elasped = (t2 - t1)
     my_utils.my_log('Finished users table and key2user update, used %.3f seconds' % elasped, level='DEBUG')
     t1 = time.time()
     build_departments_tbl()
     t2 = time.time()
-    elasped = (t2 - t1) * 1000000
+    elasped = (t2 - t1)
     my_utils.my_log('Finished departments table update, used %.3f seconds' % elasped, level='DEBUG')
     # tell okrEx Server to update the local redis user table
     t1 = time.time()
     data = okrEx_refresh_cycle()
     t2 = time.time()
-    elasped = (t2 - t1) * 1000000
+    elasped = (t2 - t1)
     my_utils.my_log('Got feedback from okr server for internal update, used %.3f seconds' % elasped, level='DEBUG')
-    # my_utils.my_log('Message is %s' % data['message'], level='DEBUG')
 
 
 def house_keep():
@@ -424,7 +486,6 @@ def main(argv):
             print('Periodic checking interval is set to %s hours' % interval)
 
     house_keep()
-
 
 if __name__ == "__main__":
     my_utils.init_log('opokr.log', level='DEBUG')
