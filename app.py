@@ -244,7 +244,7 @@ def get_search_display_similarites(open_id):
 
     display_list = []
 
-    search_str_list = current_user.segs.split(';')
+    search_str_list = json.loads(current_user.segs).keys()
 
     for user_id in current_user.top_related.split(';'):
         sd = Searchdisplay()
@@ -410,7 +410,7 @@ def update_search_str_in_redis():
     my_app.logger.debug('Entering update_search_str_in_redis')
     tup = Okr_server_msg.query.filter_by(name=SEGS_CHANGED).first()
 
-    if tup:  # tup[0] should be segs string delimiter by ;
+    if tup:  # tup.value should be segs string delimiter by ;
         changed_seg_set = set(tup.value.split(';'))
     my_app.logger.debug(changed_seg_set)
     for key in rds.scan_iter('#search_str#*'):
@@ -437,26 +437,15 @@ def get_ordered_open_id_list(search_str):
     # Notice: the key is non case-insensitive in redis cache
     ordered_open_id_list = rds.lrange('#search_str#' + search_str.lower(), 0, -1)
     my_app.logger.debug('open id length is %s' % len(ordered_open_id_list))
-
+    # https://github.com/yanguwan/OkrExplorer/issues/1
     if not ordered_open_id_list:
         high_recommend_amount = 0
-        # Step 1: try the search str as a whole
-        tup = Key2user.query.filter_by(seg=search_str).first()
-        if tup:
-            my_utils.add_to_list(ordered_open_id_list, tup.open_id_list)
-
-        # for search str more than one word, the urls will be counted as high recommendation
-
-        if search_str.find(' ') > 0:
-            high_recommend_amount += len(ordered_open_id_list)
-
-        # step2: try the key split by blank in the search string
-
+        # Step 1: try the key split by blank in the search string
         search_str_list = re.split(r"[ ]+", search_str)  # one blank or multiple blank as split
 
-        temp_open_id_list = []  # temporally for url priority(order)
+        search_str_list = list(set(search_str_list))  # incase duplicate searching items
 
-        open_id_priority_dict = {}
+        temp_open_id_dict = {}  # temporally for url order per search_str
 
         for search_item in search_str_list:
             try:
@@ -482,7 +471,8 @@ def get_ordered_open_id_list(search_str):
             tup_list = Users.query.filter(Users.name.like(like_str)).all()
 
             for tup in tup_list:
-                my_utils.add_to_list(ordered_open_id_list, tup.open_id)
+                # my_utils.add_to_list(ordered_open_id_list, tup.open_id)
+                ordered_open_id_list.append(tup.open_id)
                 high_recommend_amount += 1
 
             # all keys in the key2user is lowercase to make case-insensitive
@@ -490,20 +480,20 @@ def get_ordered_open_id_list(search_str):
 
             tup = Key2user.query.filter_by(seg=search_item).first()
             if tup:
-                my_utils.add_to_list(temp_open_id_list, tup.open_id_list)
-        # make  elements unique and keep same order
-        open_id_ordered_unique = sorted(set(temp_open_id_list), key=temp_open_id_list.index)
+                open_id_dict = json.loads(tup.open_id_list)  # change to a dict string after issue #1
+                for open_id in open_id_dict.keys():
+                    if open_id in temp_open_id_dict.keys():
+                        temp_open_id_dict[open_id] += 1000 + open_id_dict[open_id]
+                    else:
+                        # plus 1000 when open id appears in a searching item
+                        temp_open_id_dict[open_id] = 1000 + open_id_dict[open_id]
 
-        for item in open_id_ordered_unique:
-            open_id_priority_dict[item] = temp_open_id_list.count(item)
-
-        ordered_tup_list = my_utils.list_from_dict_by_val(open_id_priority_dict)  # the tup is like ('open_id',4)
+        ordered_tup_list = my_utils.list_from_dict_by_val(temp_open_id_dict)  # the tup is like ('open_id',4)
 
         for t in ordered_tup_list:
-            if t[0] not in ordered_open_id_list:  # in case duplicated entry
-                ordered_open_id_list.append(t[0])  # so far the ordered_open id_list is the url to be shown
-                if t[1] > 1:  # for open id appears in the two seg, consider it as high recommendation
-                    high_recommend_amount += 1
+            ordered_open_id_list.append(t[0])  # so far the ordered_open id_list is the url to be shown
+            if t[1] > 2000:  # for open id appears in the two seg, consider it as high recommendation
+                high_recommend_amount += 1
 
         # keep the final ordered url list into redis
         if not ordered_open_id_list:  # if it is still empty, we also need tell redis that.
@@ -514,6 +504,7 @@ def get_ordered_open_id_list(search_str):
 
             # also keep the high_recommend_amount into redis
             rds.set('#high_recommend#' + search_str, high_recommend_amount)
+
     elif ordered_open_id_list[0] == 'nothing':
         ordered_open_id_list = []  # reset to empty
         high_recommend_amount = 0
@@ -860,7 +851,7 @@ def get_departments_health_info(parent):
     Args:
         parent, String, department id
     Return:
-        a List of the direct child depart of the parent, element is a 6 element list.
+        A List of the direct child depart of the parent, element is a 6 element list.
 
         Child Department name,
         Leader name,
@@ -875,17 +866,20 @@ def get_departments_health_info(parent):
 
     for tup in tup_list:
         leader_name = rds.hget(name=tup.leader, key='name')
-        depart = [tup.name,
-                  leader_name,
-                  tup.member_count,
-                  tup.avail_okr_count,
-                  float('%.1f' % (int(tup.avail_okr_count) / int(tup.member_count) * 100)),
-                  [
-                      [rds.hget(name=u, key='name'),
-                       URL_BASE + rds.hget(name=u, key='url_id'),
-                       rds.hget(name=u, key='avatar')]
-                      for u in tup.not_health_user.split(';')] if tup.not_health_user else []
-                  ]
+        depart = [
+            tup.name,
+            leader_name,
+            tup.member_count,
+            tup.avail_okr_count,
+            float('%.1f' % (int(tup.avail_okr_count) / int(tup.member_count) * 100)),
+            [
+                [
+                    rds.hget(name=u, key='name'),
+                    URL_BASE + rds.hget(name=u, key='url_id'),
+                    rds.hget(name=u, key='avatar')
+                ] for u in tup.not_health_user.split(';')
+            ] if tup.not_health_user else []
+        ]
         departs.append(depart)
     return departs
 

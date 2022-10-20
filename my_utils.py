@@ -151,8 +151,15 @@ def add_to_list(to_list, list_semicol):
     return
 
 
-# the function is to order dict by the value
+# the function is to order dict by the value,
 def list_from_dict_by_val(url_priority_dict):
+    """
+    Args:
+        url_priority_dict, dict
+    Return:
+        A list of tuple, descending with value
+        like [(key1, v1),(key2, v2)...]
+    """
     return sorted(url_priority_dict.items(), key=lambda x: x[1], reverse=True)
 
 

@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import json
+
 import pymysql
 from dotenv import load_dotenv, find_dotenv
 import os
@@ -53,7 +55,7 @@ def replace_user_entry(db, tbl, open_id, okr_str, name, url_id, email, en_name, 
         avail_obj:
         obj_nokr:
         top_related:String, top 10 people most similar with the user ,; as delimiter
-        segs: String of seg list, ; as delimiter
+        segs: String of dict {'key1':1,'key2':2}
         hashcode: 32 bytes String, md5 value of he okr_str
         hasupdate: int 0 or 1
     Return:
@@ -88,43 +90,51 @@ def replace_user_entry(db, tbl, open_id, okr_str, name, url_id, email, en_name, 
         db.commit()
     except Exception as e:
         my_error(e)
-        # many inert duplicate keys failure is proper here
+        # many insert duplicate keys failure is proper here
         db.rollback()
 
     cursor.close()
     return
 
 
-def build_key2user_by_key(db, tbl, key, open_id):
+def build_key2user_by_key(db, tbl, key, open_id, num):
     sql = "select seg,open_id_list from %s where seg='%s'" % (tbl, key)
     data = query_tidb_okr(db, sql)
 
     if not data:  # if empty tuple
+        open_id_dict = {open_id: num}
+        open_id = json.dumps(open_id_dict)
         sql = "insert into %s(seg,open_id_list,freq,howchanged) values('%s','%s',1,'%s')" \
               % (tbl, key, open_id, 'add')
         query_tidb_okr(db, sql)
     else:
-        old_open_id_str = data[0][1]  # data is tuple, each element is a line, also a tuple
+        open_id_str = data[0][1]  # data is tuple, each element is a line, also a tuple
+        open_id_dict = json.loads(open_id_str)
         my_log("Checking if %s is in the seg %s user list before adding " % (open_id, key), level='DEBUG')
-        if old_open_id_str.find(open_id) < 0:  # only if the open_id is not in the open_id_str
-            new_open_id_str = old_open_id_str + ';' + open_id
-            freq = new_open_id_str.count('ou_')
-            sql = "update %s set open_id_list='%s',freq=%s,howchanged='update' where seg='%s'" \
-                  % (tbl, new_open_id_str, freq, key)
-            query_tidb_okr(db, sql)
+        if open_id in open_id_dict.keys():
+            open_id_dict[open_id] += num
+        else:
+            open_id_dict[open_id] = num
+        # if old_open_id_str.find(open_id) < 0:  # only if the open_id is not in the open_id_str
+        # new_open_id_str = old_open_id_str + ';' + open_id
+        freq = len(open_id_dict.keys())
+        sql = "update %s set open_id_list='%s',freq=%s,howchanged='update' where seg='%s'" \
+              % (tbl, json.dumps(open_id_dict), freq, key)
+        query_tidb_okr(db, sql)
 
 
-def update_tidb_key2user_by_key(db, key, open_id, add, obj):
+def update_tidb_key2user_by_key(db, key, open_id, num, add, obj):
     """
     Argus:
         db: the pymysql connection obj
         key: String, the seg
         open_id: String, one user's open_id
+        num: how many times the key appears in the open_id's OKR
         add: Boolean. If True, the func will add the open_id into the key;otherwise will remove the open_id from the key
         obj: backup
     Return:
         Null
-    The function will update the key2users tbl for the entry with ke.
+    The function will update the key2users tbl for the entry with key.
     mysql> desc key2user_schema;
     +---------------------+--------------+------+------+---------+-------+
     | Field               | Type         | Null | Key  | Default | Extra |
@@ -148,22 +158,29 @@ def update_tidb_key2user_by_key(db, key, open_id, add, obj):
     data = query_tidb_okr(db, sql)
 
     if not data:  # if empty tuple
+        open_id_dict = {open_id: num}
+        open_id_list_str = json.dumps(open_id_dict)
         if add:  # trying to add the open_id to the key
             sql = "insert into key2user(seg,open_id_list,freq,howchanged) values('%s','%s',1,'%s')" \
-                  % (key, open_id, 'add')
-            query_tidb_okr(db, sql)
+                  % (key, open_id_list_str, 'add')
+            data = query_tidb_okr(db, sql)
         else:  # remove
             my_error("Trying to remove a user %s from a unrelated key %s" % (open_id, key))
     else:  # the key exist, so upgrade the content
-        update = False
-        old_open_id_str = data[0][1]
+        open_id_str = data[0][1]
+        open_id_str_dict = json.loads(open_id_str)
         if add:  # add the open_id into the key
             my_log("Checking if %s is in the seg %s user list before adding " % (open_id, key), level='DEBUG')
-            if old_open_id_str.find(open_id) < 0:  # only if the open_id is not in the open_id_str
-                new_open_id_str = old_open_id_str + ';' + open_id
-                update = True
+            # if old_open_id_str.find(open_id) < 0:  # only if the open_id is not in the open_id_str
+            #     new_open_id_str = old_open_id_str + ';' + open_id
+            #     update = True
+            if open_id in open_id_str_dict.keys():
+                open_id_str_dict[open_id] += num
+            else:
+                open_id_str_dict[open_id] = num
 
         else:  # remove the open_id from the key
+            """
             index = old_open_id_str.find(open_id)
             if index < 0:
                 my_error("Trying to remove a user %s from a unrelated key %s" % (open_id, key))
@@ -176,18 +193,20 @@ def update_tidb_key2user_by_key(db, key, open_id, add, obj):
             else:
                 new_open_id_str = old_open_id_str.replace(';' + open_id, '')
                 update = True
+            """
+            if open_id in open_id_str_dict.keys():
+                del open_id_str_dict[open_id]
 
-        if update:
-            freq = new_open_id_str.count('ou_')
-            if freq == 0:  # the key not longer has any open_id, so delete the item
-                #  we will keep it for a while and delete it later
-                sql = "update key2user set open_id_list='',freq=0,howchanged='delete' where seg='%s'" \
-                      % key
-            else:
-                sql = "update key2user set open_id_list='%s',freq=%s,howchanged='update' where seg='%s'" \
-                      % (new_open_id_str, freq, key)
+        freq = len(open_id_str_dict.keys())
+        if freq == 0:  # the key no longer has any open_id, so delete the item
+            #  we will keep it for a while and delete it later
+            sql = "update key2user set open_id_list='',freq=0,howchanged='delete' where seg='%s'" \
+                    % key
+        else:
+            sql = "update key2user set open_id_list='%s',freq=%s,howchanged='update' where seg='%s'" \
+                    % (json.dumps(open_id_str_dict), freq, key)
 
-            query_tidb_okr(db, sql)
+        data = query_tidb_okr(db, sql)
 
     cursor.close()
     return data
@@ -353,9 +372,9 @@ def create_tbl_alike(db, tbl):
     return tbl_like
 
 
+
 def value_add(db, tbl, key, col, delta):
     # for debug purpose
-
     sql = "select %s from %s where name='%s'" % (col, tbl, key)
 
     data = query_tidb_okr(db, sql)
@@ -366,7 +385,7 @@ def value_add(db, tbl, key, col, delta):
 
     sql = "update %s set %s='%s' where name='%s'" % (tbl, col, value, key)
 
-    data = query_tidb_okr(db, sql)
+    query_tidb_okr(db, sql)
 
 
 def update_users_by_open_id(db, users, open_id, open_ids):

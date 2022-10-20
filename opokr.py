@@ -152,7 +152,7 @@ def update_key2user_tbl_with_users_change(db, users_alike, key2user_alike=''):
     tup_new_id_list = [t[0] for t in tup_new]
     if key2user_alike:
         tup_old_id_list = []
-    else:  # if key2user_alike is '' means it is soft way, compare to existing users table
+    else:  # if key2user_alike is '' means it is a soft way, compare to existing users table
         tup_old = talk2Tidb.get_all_from_tbl_by_cols(db, 'users', cols)
         tup_old_id_list = [t[0] for t in tup_old]
         # clear the howhanged value in key2user table in the soft mode
@@ -169,29 +169,33 @@ def update_key2user_tbl_with_users_change(db, users_alike, key2user_alike=''):
     for user_id in users_id_disappeared:
         user = _get_item(user_id, tup_old)
         my_utils.my_log('user %s disappeared' % user[1], level='DEBUG')
-        for seg in user[2].split(';'):
+        for seg,value in json.loads(user[2]).items():
             if seg:
                 # handle the seg as remove
                 talk2Tidb.update_tidb_key2user_by_key(db=db,
                                                       key=seg,
                                                       open_id=user[0],
+                                                      num=value,
                                                       add=False,
                                                       obj=False)
     for user_id in users_id_new:
         user = _get_item(user_id, tup_new)
         my_utils.my_log('user %s added' % user[1], level='DEBUG')
-        for seg in user[2].split(';'):
+        # for seg in user[2].split(';'):
+        for seg, value in json.loads(user[2]).items():
             if seg:
                 if key2user_alike:
                     talk2Tidb.build_key2user_by_key(db=db,
                                                     tbl=key2user_alike,
                                                     key=seg,
-                                                    open_id=user[0])
+                                                    open_id=user[0],
+                                                    num=value)
                 else:
                     # handle the seg as new add
                     talk2Tidb.update_tidb_key2user_by_key(db=db,
                                                           key=seg,
                                                           open_id=user[0],
+                                                          num=value,
                                                           add=True,
                                                           obj=False)
     # handle the change ones by the hashcode
@@ -200,22 +204,42 @@ def update_key2user_tbl_with_users_change(db, users_alike, key2user_alike=''):
         user_new = _get_item(user_id, tup_new)
         if user_old[3] != user_new[3]:  # hashcode are different, content changed
             my_utils.my_log('there are change for user %s' % user_id, level='DEBUG')
-            new_seg_list = list(set(user_new[2].split(';')) - set(user_old[2].split(';')))
-            for seg in new_seg_list:
+            new_segs_dict = json.loads(user_new[2])
+            old_segs_dict = json.loads(user_old[2])
+            added_segs_set = set(new_segs_dict) - set(old_segs_dict)
+
+            for seg in added_segs_set:
                 if seg:
                     talk2Tidb.update_tidb_key2user_by_key(db=db,
                                                           key=seg,
                                                           open_id=user_id,
+                                                          num=new_segs_dict[seg],
                                                           add=True,
                                                           obj=False)
 
-            disappeared_set_list = list(set(user_old[2].split(';')) - set(user_new[2].split(';')))
-            for seg in disappeared_set_list:
+            disappeared_segs_set = set(old_segs_dict) - set(new_segs_dict)
+            for seg in disappeared_segs_set:
                 if seg:
                     talk2Tidb.update_tidb_key2user_by_key(db=db,
                                                           key=seg,
                                                           open_id=user_id,
+                                                          num = old_segs_dict[seg],
                                                           add=False,
+                                                          obj=False)
+
+            # there are some segs, which freq changed, we also should update for them
+
+            keep_segs_set = set(new_segs_dict) & set(old_segs_dict)
+
+            for seg in keep_segs_set:
+                if new_segs_dict[seg] == old_segs_dict[seg]:
+                    pass
+                else: # freq changed
+                    talk2Tidb.update_tidb_key2user_by_key(db=db,
+                                                          key=seg,
+                                                          open_id=user_id,
+                                                          num=new_segs_dict[seg],
+                                                          add=True,
                                                           obj=False)
 
 
@@ -246,15 +270,23 @@ def segs_relevancy(base_segs, comp_segs):
         com_segs, String, segs delimiter with ';'
     Return the float of relevancy
     """
-    if not base_segs or not comp_segs:
+    if not base_segs or not comp_segs or base_segs == '{}' or comp_segs =='{}':
         return 0.0
 
-    base_list = base_segs.split(';')
-    comp_list = comp_segs.split(';')
+    base_dict = json.loads(base_segs)
+    comp_dict = json.loads(comp_segs)
 
-    interset = list(set(base_list) & set(comp_list))
+    inter_set = set(base_dict) & set(comp_dict)
 
-    return len(interset) / len(base_list)
+    base_freq = 0
+    for value in base_dict.values():
+        base_freq += value
+
+    comp_freq = 0
+    for seg in inter_set:
+        comp_freq += comp_dict[seg]
+
+    return len(inter_set) * 0.7 + comp_freq/base_freq
 
 
 def insert_relevency(top_rel, open_id, relevancy):
@@ -364,7 +396,11 @@ def update_user_tbl_from_feishu(mode):
 
         okr_str = okr_str.replace("'", "\\'")  # okr_str cannot have ', will affect sql insert, change it to be \'
 
-        seg_list = my_seg.my_seg(okr_content)
+        # seg_list = my_seg.my_seg(okr_content)
+
+        seg_dict = my_seg.my_seg(okr_content)
+
+        segs = json.dumps(seg_dict, ensure_ascii=False)
 
         hashcode = hashlib.md5(okr_content.encode('utf-8')).hexdigest()
 
@@ -380,7 +416,7 @@ def update_user_tbl_from_feishu(mode):
                                      avatar=avatar,
                                      avail_obj=avail_obj,
                                      obj_nokr=obj_nokr,
-                                     segs=';'.join(seg_list),
+                                     segs=segs,
                                      hashcode=hashcode,
                                      hasupdate=0)
     # Finished writing new table
@@ -487,6 +523,10 @@ def main(argv):
 
     house_keep()
 
+
 if __name__ == "__main__":
     my_utils.init_log('opokr.log', level='DEBUG')
     main(sys.argv[1:])
+
+
+
