@@ -1096,6 +1096,7 @@ def get_top_search_keyword(num):
 
 @my_app.route("/", methods=["GET"])
 def get_home():
+    # the usually starting point
     return render_template("index.html")
 
 
@@ -1394,6 +1395,9 @@ def get_analytic():
      item[1]: times
      item[2]: percentage comparing to the first place
     """
+    if not session['user']:
+        return render_template('404.html')
+
     word_list = get_top_search_keyword(20)
     return render_template('analytic.html', word_list=word_list)
 
